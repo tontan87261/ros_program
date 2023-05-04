@@ -13,8 +13,8 @@ dt-launchfile-init
 # NOTE: Use `dt-exec COMMAND` to run the main process (blocking process)
 
 # launching app
-dt-exec echo "This is an empty launch script. Update it to launch your application."
-
+dt-exec roslaunch my_package multiple_nodes.launch
+/dt-exec roslaunch led_emitter led_emitter_node.launch
 
 # ----------------------------------------------------------------------------
 # YOUR CODE ABOVE THIS LINE

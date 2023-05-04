@@ -1,0 +1,8 @@
+#! /bin/bash
+
+toilet "SKRIPT ALUSTAB!!!"
+
+dts devel build -f -H bestestduckiebot.local
+dts devel run -H bestestduckiebot.local -- --privileged
+
+toilet "SKRIPT LÕPETAB!!!"

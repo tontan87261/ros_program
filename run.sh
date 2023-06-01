@@ -2,7 +2,7 @@
 
 toilet "ALUSTAB!!!"
 
-dts devel build -f -H bestestduckiebot.local
-dts devel run -H bestestduckiebot.local -- --privileged
+dts devel build -f -H tera.local
+dts devel run -H tera.local -- --privileged
 
 toilet "LÄBI!!!"

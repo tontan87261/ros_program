@@ -18,26 +18,19 @@ class Line_follower(DTROS):
        
     def run (self):
         rate = rospy.Rate(20)
-        #array = [-16,-12,-8,-4,4,8,12,16]
 
         while not rospy.is_shutdown():
         # publish message every 1 second
-            
-            temp = self.bus.read_byte_data(62, 17)
-            self.theta_ref = bin(temp)[2:].zfill(8)
-            '''
-            emty_array = []
-            
-            for i, ele in enumerate(temp):
-                if ele == "1":
-                    emty_array.append(array[i])
-            error = sum(emty_array)/len(emty_array)
-            '''
+            try:
+                temp = self.bus.read_byte_data(62, 17)
+                self.theta_ref = bin(temp)[2:].zfill(8)
+            except:
+                print("Line follower ei saa infot")
+
             self.pub.publish(self.theta_ref)
 
             rate.sleep()
-
-
+    
 if __name__ == '__main__':
     #Teeb nodi
     node = Line_follower(node_name='line_follower')

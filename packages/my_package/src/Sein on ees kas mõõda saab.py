@@ -12,18 +12,11 @@ from smbus2 import SMBus
 
 from duckietown_msgs.msg import WheelsCmdStamped, WheelEncoderStamped
 
-
 from sensor_msgs.msg import Range
-
-
 
 speed = WheelsCmdStamped()
 
-
 class MyPublisherNode(DTROS):
-
-
-
 
     def __init__(self, node_name):
         # initialize the DTROS parent class
@@ -34,14 +27,11 @@ class MyPublisherNode(DTROS):
         self.left = 0
         self.avoiding = False
 
-        self.pub = rospy.Publisher('bestestduckiebot/wheels_driver_node/wheels_cmd', WheelsCmdStamped, queue_size=1)
-        self.tof = rospy.Subscriber('/bestestduckiebot/front_center_tof_driver_node/range', Range, self.callback)
-        self.rwheel = rospy.Subscriber('/bestestduckiebot/right_wheel_encoder_node/tick', WheelEncoderStamped ,self.rightwheel)
-        self.lwheel = rospy.Subscriber('/bestestduckiebot/left_wheel_encoder_node/tick', WheelEncoderStamped, self.leftwheel)
+        self.pub = rospy.Publisher('tera/wheels_driver_node/wheels_cmd', WheelsCmdStamped, queue_size=10)
+        self.tof = rospy.Subscriber('/tera/front_center_tof_driver_node/range', Range, self.callback)
+        self.rwheel = rospy.Subscriber('/tera/right_wheel_encoder_node/tick', WheelEncoderStamped ,self.rightwheel)
+        self.lwheel = rospy.Subscriber('/tera/left_wheel_encoder_node/tick', WheelEncoderStamped, self.leftwheel)
         
-
-        
-
     def on_shutdown(self):
                 
         speed.vel_right = 0
@@ -52,15 +42,12 @@ class MyPublisherNode(DTROS):
 
     def callback(self, data):
         self.range = data.range
-        
     
     def rightwheel(self, data):
         self.right = data.data
-        
 
     def leftwheel(self, data):
         self.left = data.data
-        
 
     def go_around(self):
 
@@ -83,8 +70,6 @@ class MyPublisherNode(DTROS):
             speed.vel_left = float(0)
             self.pub.publish(speed)
             parem = self.right - right_start
-            
-
 
         if parem > 60:
             speed.vel_right = float(0)
@@ -151,26 +136,14 @@ class MyPublisherNode(DTROS):
 
         self.avoiding = False
         
-    
-        
-
-
-
-        
     def run(self):
-        
-
     # publish message every 1 second
         rate = rospy.Rate(30) # 1Hz
         
-        
         bus = SMBus(1)
         
-    
         while not rospy.is_shutdown() and not self.avoiding:
                 
-            
-
             try:
                 temp = bus.read_byte_data(62, 17)
             except:
@@ -180,12 +153,7 @@ class MyPublisherNode(DTROS):
             message = str(temp)
 
             #rospy.loginfo("Line follower: %s" % message)
-            
-
-                
-            
-                    
-            
+    
             if self.range < 0.3:
                 print("A wall appeared!")
                 speed.vel_right = float(0)
@@ -195,9 +163,7 @@ class MyPublisherNode(DTROS):
                 self.go_around()
                 if self.avoiding == False:
                     break
-                
-                
-                
+                 
             else:
                 speed.vel_right = float(0.2)
                 speed.vel_left = float(0.2)
@@ -210,9 +176,6 @@ class MyPublisherNode(DTROS):
             #speed.vel_left = float(0)
             #speed.vel_right = float(0)
             #self.pub.publish(speed)
-
-
-
 
 if __name__ == '__main__':
     # create the node

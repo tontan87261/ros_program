@@ -14,9 +14,6 @@ from geometry_msgs.msg import Pose
 import PID_controller
 import Line_follower_output
 
-import board
-import adafruit_mpu6050
-
 
 
 #-------------------------------------- KOODI PEAMINE FUNKTSIONAALSUS ----------------------------------------------#
@@ -32,8 +29,6 @@ class MyPublisherNode(DTROS): #Klass
     def __init__(self, node_name):
         super(MyPublisherNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
         self.bus = SMBus(1)
-        
-
 
         self.start_vel = 0.25  #Roboti algne kiirus
         self.range = 1
@@ -48,11 +43,12 @@ class MyPublisherNode(DTROS): #Klass
         self.sub4 = rospy.Subscriber('line_follower', String, self.line_follower)
     
 
-        self.pub = rospy.Publisher('bestestduckiebot/wheels_driver_node/wheels_cmd', WheelsCmdStamped, queue_size=1)
-        self.tof = rospy.Subscriber('/bestestduckiebot/front_center_tof_driver_node/range', Range, self.callback)
-        self.rwheel = rospy.Subscriber('/bestestduckiebot/right_wheel_encoder_node/tick', WheelEncoderStamped ,self.rightwheel)
-        self.lwheel = rospy.Subscriber('/bestestduckiebot/left_wheel_encoder_node/tick', WheelEncoderStamped, self.leftwheel)
+        self.pub = rospy.Publisher('tera/wheels_driver_node/wheels_cmd', WheelsCmdStamped, queue_size=1)
+        self.tof = rospy.Subscriber('/tera/front_center_tof_driver_node/range', Range, self.callback)
+        self.rwheel = rospy.Subscriber('/tera/right_wheel_encoder_node/tick', WheelEncoderStamped ,self.rightwheel)
+        self.lwheel = rospy.Subscriber('/tera/left_wheel_encoder_node/tick', WheelEncoderStamped, self.leftwheel)
 
+        self.led = rospy.Publisher('/tera/led_emitter_node/led_pattern', Pose, queue_size=1)
         
         self.ticks_left = 0
         self.prev_tick_left = 0
@@ -86,15 +82,14 @@ class MyPublisherNode(DTROS): #Klass
         self.option = 0
         self.errorlist = []
 
-        self.array = [-14,-12,-10,-6,6,10,12,14]
+        self.array = [-13,-12,-8,-5,5,8,12,13]
 
         #Joone järgimis anduri võimalikud väärtused mida on vaja sõitmiseks joonel
         self.rightvalues = [[0, 1, 1, 1, 1, 1, 1, 1], [0, 0, 1, 1, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1, 1, 1], [0, 0, 0, 0, 1, 1, 1, 1], [0, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1]]
         self.leftvalues = [[1, 1, 1, 1, 1, 1, 1, 0], [1, 1, 1, 1, 1, 1, 0, 0], [1, 1, 1, 1, 1, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0]]
-        self.shortroute = [[1, 0, 0, 1, 0, 0, 0, 0], [1, 1, 0, 1, 1, 0, 0, 0], [1, 0, 1, 1, 0, 0, 0, 0], [0, 1, 1, 0, 1, 1, 0, 0]]
+        #self.shortroute = [[1, 0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 1, 0, 0, 0, 0], [1, 1, 0, 1, 1, 0, 0, 0], [1, 0, 1, 1, 0, 0, 0, 0], [0, 1, 1, 0, 1, 1, 0, 0]]
+        self.shortroute = ['10100000', '10010000', '11011000', '10110000', '0o01101100']
         self.turningpoint = [ [0, 0, 1, 1, 1, 1, 0, 0], [0, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1, 0]]
-
-
         
         #Roboti sulgemis errori eemaldamine
     def on_shutdown(self):
@@ -109,20 +104,18 @@ class MyPublisherNode(DTROS): #Klass
     def left_odom(self, data):
         self.input = data.position
         self.deltat = data.position.z
-        #print("Vasaku ratta pöörlemine kraadides: ", self.input)
-        
     
     def right_odom(self, data):
         self.odom_r = data.position.x       #Parema ratta pöörlemine kraadides
         #print("Parema ratta pöörlemine kraadides: ", self.odom_r)
 
     def line_follower(self, data):
-        self.theta_ref = data.data
-        #print("Eraldi failist line follower: ", self.theta_ref)    
+        theta = data.data
+        self.theta_ref = theta
+        #print("Line follower: ", self.theta_ref)    
         
     def callback(self, data):
         self.range = data.range
-        #print("Kaugus: ", self.range)
         #rospy.loginfo("Kuulen: %s", data.range)
     def rightwheel(self, data):
         self.right = data.data
@@ -132,10 +125,6 @@ class MyPublisherNode(DTROS): #Klass
         self.left = data.data
         self.timeL = data.header.seq
         #rospy.loginfo("Vasak ratas: %s", data.header.seq)
-
-    #def time_leftwheel(self, data):
-        
-    #def time_rightwheel(self, data):
         
 
 #-------------------------------------- MÖÖDA SÕITMINE ----------------------------------------------#
@@ -155,86 +144,120 @@ class MyPublisherNode(DTROS): #Klass
         #print(":::::::::::::::: %s", left_start)
         print(vasak)
 
-        while vasak <= 50:
+        counter = 0
+
+        while vasak <= 60:
             #print("Turning left:")
             #print("vasak: ", vasak)
             #print("parem: ", parem)
             speed.vel_right = 0.0
-            speed.vel_left = 0.2
+            speed.vel_left = 0.3
             self.pub.publish(speed)
             vasak = self.left - left_start
             #parem = self.right - right_start
-        print("Paremale")
-        print("Vasak ", vasak)
+            #print(vasak)right
+            #print("1: ", self.left)
+            #print("2: ", left_start)
+            #print("3: ", vasak)
+            
+            print("")
+            print("")
+            print("")
+            
 
-        if vasak > 50:
+            counter = counter + 1
+
+        #print("time taken right turn: ", counter)
+        if vasak > 60:
             speed.vel_right = 0.0
             speed.vel_left = 0.0
             self.pub.publish(speed)
-            sleep(0.5)
-            while vasak < 270:
+            counter = 0
+            right_start = self.right
+            parem = self.right - right_start
+            sleep(1)
+            while parem < 120:
+
                 #print("Driving forward:")
                 #print("vasak: ", vasak)
                 #print("parem: ", parem)
-                speed.vel_right = 0.5
-                speed.vel_left = 0.5
+                speed.vel_right = 0.4
+                speed.vel_left = 0.30
                 self.pub.publish(speed)
-                vasak = self.left - left_start
+                parem = self.right - right_start
                 #vasak = self.left - left_start
-                #print(parem)
-            print("Otse")
-            print("Vasak ", vasak)
+                #print(self.right)
+                counter = counter + 1
 
-            if vasak >= 270:
-                vasak = self.left - left_start
+            #print("time taken straight: ", counter)
+            if parem >= 120:
+                parem = self.right - right_start
                 #vasak = self.left - left_start
-                print("Stopping:")
+                #print("Stopping:")
                 #print("vasak: ", vasak)
                 #print("parem: ", parem)
                 speed.vel_right = 0.0
                 speed.vel_left = 0.0
                 self.pub.publish(speed)
-                sleep(0.5)
-                print("Parem ", parem)
-                while parem < 310:
+                counter = 0
+                right_start = self.right
+                parem = self.right - right_start
+                #print("Parem: ", parem)
+                sleep(1)
+                right_start = self.right
+                parem = self.right - right_start
+
+                while parem < 105:
                     #print("Turning left:")
                     #print("vasak: ", vasak)
-                    #print("parem: ", parem)
-                    parem = self.right - right_start
+                    print(parem)
+                    
                     #vasak = self.left - left_start
-                    speed.vel_right = 0.2
+                    speed.vel_right = 0.3
                     speed.vel_left = 0.0
                     self.pub.publish(speed)
-                print("Parem ", parem)
-                if parem >= 310:
+                    parem = self.right - right_start
+                    counter = counter + 1
+                    
+                    #print("time taken left turn: ", counter)
+
+                if parem >= 105:
                     #print("Stopping:")
                     #print("vasak: ", vasak)
                     #print("parem: ", parem)
                     speed.vel_right = 0.0
                     speed.vel_left = 0.0
                     self.pub.publish(speed)
-                    sleep(0.5)
-                print("Parem ", parem)
-            while parem >= 310 and parem < 450:
-                #print("Driving forward:")
-                #print("vasak: ", vasak)
-                #print("parem: ", parem)
-                speed.vel_right = 0.4
-                speed.vel_left = 0.4
-                self.pub.publish(speed)
-                parem = self.right - right_start
-                #vasak = self.left - left_start
-                #print(vasak)
+                    #right_start = self.right
+                    #left_start = self.left
+                    sleep(1)
 
-            print("Paremale: ", parem)
-            if parem >= 500:
+                while parem < 190:
+                    print("Driving forward:")
+                    #print("vasak: ", vasak)
+                    #print("parem: ", parem)
+                    speed.vel_right = 0.1
+                    speed.vel_left = 0.4
+
+                    print(speed.vel_left)
+
+                    self.pub.publish(speed)
+                    parem = self.right - right_start
+                    vasak = self.left - left_start
+                    #print(vasak)
+
+            if parem >= 190:
                 #print("Stopping:")
                 #print("vasak: ", vasak)
-                #print("parem: ", parem)
-                speed.vel_right = 0.25
-                speed.vel_left = 0.25
+                #print("parem: ", parem)n name resolution>
+
+
+                speed.vel_right = 0.1
+                speed.vel_left = 0.5
+
+                print(speed.vel_left)
+
                 self.pub.publish(speed)
-                print("Parem ", parem)
         self.avoiding = False
 
 
@@ -243,16 +266,19 @@ class MyPublisherNode(DTROS): #Klass
 
         #Äkiline parem põõrde funktsioon sooritab 90 kraadiseid põõrdeid
     def sharp_right(self):
-        #print("starting to turn right")
-        speed.vel_right = 0.0
+        print("starting to turn right")
+        speed.vel_right = -0.1
         speed.vel_left = 0.2
         self.pub.publish(speed)
         while sum(self.errorlist) == 0 or self.errorlist in self.rightvalues:
             #print("Sharp right!")
+            #print("R:", self.theta_ref)
+            temp = self.bus.read_byte_data(62, 17)
+            self.theta_ref = bin(temp)[2:].zfill(8)
             
             self.errorlist = list(map(int, self.theta_ref))            
             
-            speed.vel_right = 0.0
+            speed.vel_right = -0.1
             speed.vel_left = 0.2
             self.pub.publish(speed)
             #print("Right: ", self.theta_ref)
@@ -260,18 +286,21 @@ class MyPublisherNode(DTROS): #Klass
 
         #Äkiline vasak põõrde funktsioon sooritab 90 kraadiseid põõrdeid
     def sharp_left(self):
-        #print("starting to turn left")
+        print("starting to turn left")
         speed.vel_right = 0.2
-        speed.vel_left = 0.0
+        speed.vel_left = -0.1
         self.pub.publish(speed)
 
         while sum(self.errorlist) == 0 or self.errorlist in self.leftvalues:
             #print("Sharp left!")
+            #print("L:", self.theta_ref)
+            temp = self.bus.read_byte_data(62, 17)
+            self.theta_ref = bin(temp)[2:].zfill(8)
             
             self.errorlist = list(map(int, self.theta_ref))            
             
             speed.vel_right = 0.2
-            speed.vel_left = 0.0
+            speed.vel_left = -0.1
             self.pub.publish(speed)
             #print("Left: ", self.theta_ref)
             self.lastturn = 2
@@ -279,18 +308,20 @@ class MyPublisherNode(DTROS): #Klass
         #Lühema raja valimine, valib lühema raja tuvastatdes joone ääres olevat ruutu mille järgi teab kumal pool on õige valik ning keerab õigesse suunda
     def short_path(self):
         print("Taking the short path!")
-        while self.errorlist[0] == 1 or self.errorlist[1] == 1 or self.errorlist[2] == 1 and self.errorlist[5] == 0:
+        while self.theta_ref != 0o00000001 or self.theta_ref != 0o00000010 or self.theta_ref != 0o00000100:
+        #while self.errorlist[0] == 1 or self.errorlist[1] == 1 or self.errorlist[2] == 1 and self.errorlist[5] == 0:
             
-            self.errorlist = list(map(int, self.theta_ref))
-            if self.errorlist[2] == 1 and self.errorlist[5] == 1:
-                while self.errorlist[0] == 0 and self.errorlist[1] == 0:
+            #self.errorlist = list(map(int, self.theta_ref))
+            #if self.errorlist[2] == 1 and self.errorlist[5] == 1:
+            
+                #while self.errorlist[0] == 0 and self.errorlist[1] == 0:
 
-                    while self.errorlist[0] == 1 or self.errorlist[1] == 1 or self.errorlist[2] == 1:
+                #while self.errorlist[0] == 1 or self.errorlist[1] == 1 or self.errorlist[2] == 1:
 
-                    
-                        speed.vel_right = 0.2
-                        speed.vel_left = 0.0
-                        self.pub.publish(speed)
+                
+                    speed.vel_right = 0.2
+                    speed.vel_left = 0.0
+                    self.pub.publish(speed)
         self.short = 0
 
 
@@ -299,6 +330,7 @@ class MyPublisherNode(DTROS): #Klass
 #Väljastab info iga sekund|| niipalju kordi
 #                         \/
         rate = rospy.Rate(20) # 1Hz
+
         range1 = 0
         range2 = 0
         range3 = 0
@@ -313,12 +345,16 @@ class MyPublisherNode(DTROS): #Klass
             #self.lastCall = self.timeL
             #print("DELTA T : ", self.delta_t)
             
+            
+
             #Ümber takistuse
             range3 = range2
             range2 = range1
             range1 = self.range
-            average = (range1 + range2 +range3) / 3
-            
+
+            average = (range1 + range2 + range3)/3
+
+            ''
             if average < 0.28 and average > 0:
                 print("A wall appeared!")
                 speed.vel_right = 0.0
@@ -329,28 +365,21 @@ class MyPublisherNode(DTROS): #Klass
                 if self.avoiding == False:
                     pass
             
-            
             #self.theta_ref = Line_follower_output.line_follower()
-            #print(self.theta)
-            
-            #Joonelugeri info lugemine
+
             temp = self.bus.read_byte_data(62, 17)
             self.theta_ref = bin(temp)[2:].zfill(8)
+            self.errorlist = list(map(int, self.theta_ref))
 
             self.line_values = []
             for i, value in enumerate(str(self.theta_ref)):
                 if value =='1':
                     self.line_values.append(self.array[i])
-            '''
-            emty_array = []
-            for i, ele in enumerate(str(self.theta_ref)):
-                if ele == "1":
-                    emty_array.append(self.array[i + 1])
-            '''
+                    
 
+            
             if len(self.line_values) != 0:
-                #self.position = sum(self.line_values) / len(self.line_values)
-                self.position = sum(self.line_values)/len(self.line_values)
+                self.position = sum(self.line_values) / len(self.line_values)
 
                 self.PID, error = PID_controller.PID(self.position, self.delta_t, self.prev_e)
                 self.prev_e = error
@@ -365,7 +394,6 @@ class MyPublisherNode(DTROS): #Klass
             else:
                 self.PID = 0
             
-
             #D = (Error - previous error) / delta t
 
             if self.errorlist in self.rightvalues:  #Äkiline parem põõre
@@ -378,23 +406,30 @@ class MyPublisherNode(DTROS): #Klass
                 
             if self.line_values == [] and self.lastturn == 1:    #Äkiline parem põõre           self.position < 2 
                 speed.vel_right = 0.0           
-                speed.vel_left = 0.3
+                speed.vel_left = 0.2
                 self.pub.publish(speed)
 
             if self.line_values == [] and self.lastturn == 2:   #Äkiline vasak põõre     self.position > 7 
-                speed.vel_right = 0.3
+                speed.vel_right = 0.2
                 speed.vel_left = 0.0
                 self.pub.publish(speed)
-            
-            if len(self.line_values) != 0 and self.theta_ref is not self.rightvalues and self.theta_ref is not self.leftvalues:         #Lühikese raja läbimine
 
-                #if self.errorlist in self.shortroute:
-                #    self.short = 1
+            self.errorlist = list(map(int, self.theta_ref))
+            
+            #print("theta:", self.errorlist)
+            #print("types:", type(self.theta_ref), type(self.shortroute[1]))
+            
+            if self.line_values != []:         #Lühikese raja läbimine
+
+                if self.theta_ref in self.errorlist:
+                    self.short = 1
+                    self.short_path()
                 
                 #if self.short == 1 and self.errorlist[1] == 1  or self.errorlist[0] == 1 or self.errorlist in self.turningpoint:
-                #    self.short_path()
+                    #self.short_path()
          
-                
+                self.start_vel = float(rospy.get_param("/maxvel"))
+
                 speed.vel_right = self.start_vel - self.PID
                 speed.vel_left = self.start_vel + self.PID
                 #print(speed.vel_right)
@@ -409,7 +444,7 @@ class MyPublisherNode(DTROS): #Klass
             rate.sleep()
         
 if __name__ == '__main__':
-    #Teeb nodi
+    #Teeb nodei
     node = MyPublisherNode(node_name='my_publisher_node')
     #Jooksutamis node
     node.run()

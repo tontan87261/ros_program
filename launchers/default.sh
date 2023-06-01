@@ -14,7 +14,7 @@ dt-launchfile-init
 
 # launching app
 dt-exec roslaunch my_package multiple_nodes.launch
-/dt-exec roslaunch led_emitter led_emitter_node.launch
+dt-exec roslaunch led_emitter led_emitter_node.launch
 
 # ----------------------------------------------------------------------------
 # YOUR CODE ABOVE THIS LINE

@@ -19,8 +19,8 @@ class MyPublisherNode(DTROS):
         self.pub = rospy.Publisher('left_wheel_rotation', Pose, queue_size = 1)
         self.pub2 = rospy.Publisher('left_wheel_travel', Pose, queue_size = 1)
         self.pub3 = rospy.Publisher('right_wheel', Pose, queue_size = 1)
-        self.rwheel = rospy.Subscriber('/bestestduckiebot/right_wheel_encoder_node/tick', WheelEncoderStamped ,self.rightwheel)
-        self.lwheel = rospy.Subscriber('/bestestduckiebot/left_wheel_encoder_node/tick', WheelEncoderStamped, self.leftwheel)
+        self.rwheel = rospy.Subscriber('/tera/right_wheel_encoder_node/tick', WheelEncoderStamped ,self.rightwheel)
+        self.lwheel = rospy.Subscriber('/tera/left_wheel_encoder_node/tick', WheelEncoderStamped, self.leftwheel)
 
         self.ticks_left = 0
         self.prev_tick_left = self.ticks_left
@@ -84,8 +84,8 @@ class MyPublisherNode(DTROS):
             #print(f"The left wheel rotated: {np.rad2deg(self.rotation_wheel_left)} degrees")
             #print(f"The right wheel rotated: {np.rad2deg(self.rotation_wheel_right)} degrees")
             R = 0.0345           # insert value measured by ruler, in *meters*
-            d_left = self.rotation_wheel_left * R
-            d_right = self.rotation_wheel_right * R
+            d_left = R * self.rotation_wheel_left
+            d_right = R * self.rotation_wheel_right
             #print(f"The left wheel travelled: {d_left} meters")
             #print(f"The right wheel travelled: {d_right} meters")
             # How much has the robot rotated?
